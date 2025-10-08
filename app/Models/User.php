@@ -34,6 +34,14 @@ class User extends Authenticatable
     ];
 
     /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory(): \Database\Factories\UserFactory
+    {
+        return \Database\Factories\UserFactory::new();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

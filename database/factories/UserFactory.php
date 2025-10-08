@@ -24,21 +24,39 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'uuid' => Str::uuid()->toString(),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'avatar' => fake()->imageUrl(200, 200, 'people'),
+            'phone' => fake()->phoneNumber(),
+            'address' => fake()->address(),
+            'city' => fake()->city(),
+            'role' => 'user',
             'remember_token' => Str::random(10),
         ];
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Indicate that the user should be an admin.
      */
-    public function unverified(): static
+    public function admin(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+            'role' => 'admin',
         ]);
+    }
+
+    /**
+     * Create 3 admin users and 2 regular users.
+     */
+    public static function createUsers(): void
+    {
+        // Create 3 admin users
+        static::new()->admin()->count(3)->create();
+
+        // Create 2 regular users
+        static::new()->count(2)->create();
     }
 }
