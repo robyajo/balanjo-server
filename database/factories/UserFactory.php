@@ -43,7 +43,7 @@ class UserFactory extends Factory
      */
     public function admin(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'role' => 'admin',
         ]);
     }
@@ -54,7 +54,7 @@ class UserFactory extends Factory
     public static function createUsers(): void
     {
         // Create 3 admin users
-        static::new()->admin()->count(3)->create();
+        // static::new()->admin()->count(3)->create();
 
         // Create 2 regular users
         static::new()->count(2)->create();
