@@ -9,18 +9,39 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, HasApiTokens, Notifiable, HasRoles, SoftDeletes;
+    use HasFactory, HasApiTokens, Notifiable, HasRoles, SoftDeletes, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
-
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'uuid',
+                'name',
+                'email',
+                'password',
+                'avatar',
+                'phone',
+                'address',
+                'city',
+                'active',
+                'profile'
+            ])
+            ->setDescriptionForEvent(fn(string $eventName) => "This model has been {$eventName}")
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
     protected $fillable = [
         'uuid',
         'name',
@@ -31,6 +52,7 @@ class User extends Authenticatable
         'address',
         'city',
         'active',
+        'profile'
     ];
 
     /**

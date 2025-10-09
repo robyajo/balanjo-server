@@ -24,6 +24,7 @@ class UserSeeder extends Seeder
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
+            'profile' => 'active',
         ]);
         $superAdmin->assignRole('Super Admin');
 
@@ -37,6 +38,7 @@ class UserSeeder extends Seeder
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
+            'profile' => 'active'
         ]);
         $rAdmin->assignRole('Admin');
 
@@ -50,6 +52,7 @@ class UserSeeder extends Seeder
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
+            'profile' => 'active'
         ]);
         $pAdmin->assignRole('Admin');
     }

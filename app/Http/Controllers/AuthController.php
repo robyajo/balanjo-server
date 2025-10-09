@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\PhoneHelper;
 use App\Models\User;
+use App\Rules\UniqueIndonesianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -60,22 +62,19 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8|confirmed',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:100',
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'password' => 'required|min:6|confirmed',
+            'phone' => ['nullable', 'string', 'max:15', new UniqueIndonesianPhone()],
         ], [
             'name.required' => 'Name is required.',
             'email.required' => 'Email is required.',
             'email.email' => 'Email format is invalid.',
             'email.unique' => 'Email is already registered.',
             'password.required' => 'Password is required.',
-            'password.min' => 'Password must be at least 8 characters.',
+            'password.min' => 'Password must be at least 6 characters.',
             'password.confirmed' => 'Password confirmation does not match.',
-            'avatar.image' => 'Avatar must be an image.',
-            'avatar.mimes' => 'Avatar must be jpeg, png, jpg, or gif.',
-            'avatar.max' => 'Avatar size must not exceed 2MB.',
+            'phone.required' => 'Phone is required.',
+            'phone.max' => 'Phone must be at most 15 characters.',
+            'phone.unique' => 'Phone is already registered.',
         ]);
 
         if ($validator->fails()) {
@@ -86,46 +85,32 @@ class AuthController extends Controller
         }
 
         try {
-            // Handle avatar upload
-            if ($request->hasFile('avatar')) {
-
-                $avatar = $request->file('avatar');
-                $filename = time() . '.' . $avatar->getClientOriginalExtension();
-                $image = Image::read($avatar);
-                // Resize image
-                $image->resize(300, 300, function ($constraint) {
-                    $constraint->aspectRatio();
-                })->save(public_path('assets/images/user/avatar/' . $filename));
-                $avatarFilename = $filename;
-            }
+            $phone = PhoneHelper::formatToIndonesian($request->phone);
             // Create user
             $user = User::create([
                 'uuid' => Str::uuid(),
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'city' => $request->city,
-                'avatar' => $avatarFilename,
-                'active' => 'active',
+                'phone' => $phone,
+
             ]);
 
             // Assign default role (optional)
             // $user->assignRole('User');
 
             // Generate token
-            $token = Auth::login($user);
+            $token = $user->createToken('auth-token')->plainTextToken;
             activity()
                 ->causedBy($user)
                 ->performedOn($user)
-                ->event('create')
+                ->event('register')
                 ->withProperties([
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
                 ])
-                ->log("User {$user->name} created an account.");
+                ->log("User {$user->name} registered an account.");
 
             return response()->json([
                 'message' => 'User registered successfully',
@@ -204,10 +189,12 @@ class AuthController extends Controller
     public function me(): JsonResponse
     {
         try {
+            /** @var \App\Models\User $user */
             $user = Auth::user();
             activity()
                 ->causedBy($user)
                 ->event('me')
+                ->performedOn($user)
                 ->withProperties([
                     'ip' => request()->ip(),
                     'date' => now(),
@@ -296,10 +283,40 @@ class AuthController extends Controller
     public function logout(): JsonResponse
     {
         try {
-            Auth::logout();
-            return response()->json(['message' => 'User logged out successfully'], 200);
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+
+            // Validasi jika user tidak ditemukan
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+
+
+            // Log activity sebelum logout
+            activity()
+                ->causedBy($user)  // causedBy menerima model, bukan string
+                ->performedOn($user)
+                ->event('logout')
+                ->withProperties([
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} logged out.");
+
+            // Logout dari guard
+            $user->tokens()->delete();
+
+            return response()->json([
+                'message' => 'User logged out successfully'
+            ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -330,7 +347,7 @@ class AuthController extends Controller
     private function uploadAvatar($avatar)
     {
         $filename = time() . '_' . Str::random(10) . '.' . $avatar->getClientOriginalExtension();
-        $path = public_path('images/auth/icons/avatars/');
+        $path = storage_path('app/public/images/auth/icons/avatars/');
 
         // Create directory if not exists
         if (!file_exists($path)) {
@@ -369,6 +386,7 @@ class AuthController extends Controller
                 : null,
             'role' => $roleName,
             'active' => $user->active,
+            'profile' => $user->profile,
             'created_at' => $user->created_at,
         ];
     }

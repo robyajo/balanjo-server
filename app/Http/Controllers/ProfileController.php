@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\PhoneHelper;
 use App\Models\User;
+use App\Rules\UniqueIndonesianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -45,6 +47,7 @@ class ProfileController extends Controller
                         : null,
                     'role' => $roleName,
                     'active' => $user->active,
+                    'profile' => $user->profile,
                     'email_verified_at' => $user->email_verified_at,
                     'created_at' => $user->created_at,
                     'updated_at' => $user->updated_at,
@@ -75,7 +78,7 @@ class ProfileController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $user->id,
-                'phone' => 'nullable|string|max:20',
+                'phone' => ['nullable', 'string', 'max:15', new UniqueIndonesianPhone($user->id)],
                 'address' => 'nullable|string|max:255',
                 'city' => 'nullable|string|max:100',
                 'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -86,6 +89,7 @@ class ProfileController extends Controller
                 'email.email' => 'Email format is invalid.',
                 'email.unique' => 'Email is already taken.',
                 'phone.max' => 'Phone must not exceed 20 characters.',
+                'phone.unique' => 'Phone is already taken.',
                 'address.max' => 'Address must not exceed 255 characters.',
                 'city.max' => 'City must not exceed 100 characters.',
                 'avatar.image' => 'Avatar must be an image.',
@@ -99,12 +103,12 @@ class ProfileController extends Controller
                     'errors' => $validator->errors()->all(),
                 ], 422);
             }
-
+            $phone = PhoneHelper::formatToIndonesian($request->phone);
             // Handle avatar upload
             if ($request->hasFile('avatar')) {
                 // Delete old avatar if exists
                 if ($user->avatar) {
-                    $oldAvatarPath = public_path('assets/images/user/avatar/' . $user->avatar);
+                    $oldAvatarPath = storage_path('app/public/assets/images/user/avatar/' . $user->avatar);
                     if (file_exists($oldAvatarPath)) {
                         unlink($oldAvatarPath);
                     }
@@ -127,10 +131,22 @@ class ProfileController extends Controller
             $user->update([
                 'name' => $request->name,
                 'email' => $request->email,
-                'phone' => $request->phone,
+                'phone' => $phone,
                 'address' => $request->address,
                 'city' => $request->city,
             ]);
+
+            // Check if all required profile fields are filled and set profile status to active
+            $allFieldsFilled = $user->name &&
+                $user->email &&
+                $user->phone &&
+                $user->address &&
+                $user->city;
+
+            if ($allFieldsFilled && $user->profile !== 'active') {
+                $user->update(['profile' => 'active']);
+                $user->refresh(); // Refresh to get updated data
+            }
 
             $roleName = $user->roles->first()->name ?? null;
 
@@ -150,6 +166,7 @@ class ProfileController extends Controller
                         : null,
                     'role' => $roleName,
                     'active' => $user->active,
+                    'profile' => $user->profile,
                     'updated_at' => $user->updated_at,
                 ],
             ], 200);
@@ -238,7 +255,7 @@ class ProfileController extends Controller
             }
 
             // Delete avatar file
-            $avatarPath = public_path('assets/images/user/avatar/' . $user->avatar);
+            $avatarPath = storage_path('app/public/assets/images/user/avatar/' . $user->avatar);
             if (file_exists($avatarPath)) {
                 unlink($avatarPath);
             }
@@ -354,7 +371,7 @@ class ProfileController extends Controller
     private function uploadAvatar($avatar)
     {
         $filename = time() . '_' . Str::random(10) . '.' . $avatar->getClientOriginalExtension();
-        $path = public_path('assets/images/user/avatar/');
+        $path = storage_path('app/public/assets/images/user/avatar/');
 
         // Create directory if not exists
         if (!file_exists($path)) {

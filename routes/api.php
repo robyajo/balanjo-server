@@ -16,14 +16,14 @@ use Spatie\Csp\AddCspHeaders;
 Route::middleware(AddCspHeaders::class)->group(function () {
     // Routes go here...
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
-        Route::post('login', 'login');
+        Route::post('login', 'login')->name('login');
         Route::post('register', 'register');
     });
     Route::middleware('auth:sanctum')->group(function () {
         // Auth routes
         Route::prefix('auth')->controller(AuthController::class)->group(function () {
             Route::post('logout', 'logout');
-            Route::post('permission', 'permission');
+            Route::get('permission', 'permission');
             Route::post('forgot-password', 'forgotPassword');
             Route::post('refresh', 'refresh');
             Route::get('me', 'me');
@@ -72,8 +72,8 @@ Route::middleware(AddCspHeaders::class)->group(function () {
         // Profile routes
         Route::prefix('profile')->controller(ProfileController::class)->group(function () {
             Route::get('/', 'index');
-            Route::put('/update', 'update');
-            Route::put('/password', 'updatePassword');
+            Route::post('/update-profile', 'update');
+            Route::post('/update-password', 'updatePassword');
             Route::delete('/avatar', 'deleteAvatar');
             Route::get('/activity', 'activity');
             Route::post('/deactivate', 'deactivate');

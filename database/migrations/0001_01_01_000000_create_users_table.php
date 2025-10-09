@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('address')->nullable();
             $table->string('city')->nullable();
             $table->enum('active', ['active', 'inactive'])->default('inactive');
+            $table->enum('profile', ['active', 'inactive'])->default('inactive');
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
