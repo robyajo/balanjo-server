@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Helpers\PhoneHelper;
 use App\Models\User;
 use App\Rules\UniqueIndonesianPhone;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -85,6 +87,7 @@ class AuthController extends Controller
         }
 
         try {
+            DB::beginTransaction();
             $phone = PhoneHelper::formatToIndonesian($request->phone);
             // Create user
             $user = User::create([
@@ -99,8 +102,14 @@ class AuthController extends Controller
             // Assign default role (optional)
             // $user->assignRole('User');
 
-            // Generate token
-            $token = $user->createToken('auth-token')->plainTextToken;
+
+
+            DB::commit();
+            event(new Registered($user));
+            return response()->json([
+                'message' => 'User registered successfully, please check your email for verification.',
+            ], 201);
+
             activity()
                 ->causedBy($user)
                 ->performedOn($user)
@@ -111,14 +120,8 @@ class AuthController extends Controller
                     'device' => request()->userAgent(),
                 ])
                 ->log("User {$user->name} registered an account.");
-
-            return response()->json([
-                'message' => 'User registered successfully',
-                'user' => $this->formatUserResponse($user),
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ], 201);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'message' => 'Server error: ' . $e->getMessage(),
             ], 500);
@@ -135,7 +138,10 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => [
+                'required',
+                'email',
+            ],
             'password' => 'required|min:3'
         ], [
             'email.required' => 'Email is required.',
@@ -151,9 +157,36 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Cek apakah email terdaftar
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Authentication failed',
+                'errors' => ['email' => ['This email is not registered. Please sign up first.']]
+            ], 404);
+        }
+
+        // Email ada, cek password
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Authentication failed',
+                'errors' => ['password' => ['Password is incorrect.']]
+            ], 401);
+        }
+        $token = $user->createToken('auth-token')->plainTextToken;
+        // ✅ CEK EMAIL VERIFICATION
+        if (is_null($user->email_verified_at)) {
+            return response()->json([
+                'message' => 'Email verification required',
+                'errors' => ['email' => ['Your email is not verified. Please check your email and verify your account.']],
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'url_resend_email' => url('/api/email/verification-notification'),
+            ], 403);
+        }
+
         try {
-            $user = User::where('email', $request->email)->first();
-            $token = $user->createToken('auth-token')->plainTextToken;
             activity()
                 ->causedBy($user)
                 ->performedOn($user)
@@ -164,10 +197,8 @@ class AuthController extends Controller
                     'device' => request()->userAgent(),
                 ])
                 ->log("User {$user->name} logged in.");
-            $activity = ModelsActivity::all()->last();
 
-            $activity->description;
-            $activity->changes();
+            $activity = ModelsActivity::all()->last();
 
             return response()->json([
                 'message' => 'Login successful',
@@ -292,9 +323,6 @@ class AuthController extends Controller
                     'message' => 'User not authenticated'
                 ], 401);
             }
-
-
-
             // Log activity sebelum logout
             activity()
                 ->causedBy($user)  // causedBy menerima model, bukan string
@@ -387,6 +415,7 @@ class AuthController extends Controller
             'role' => $roleName,
             'active' => $user->active,
             'profile' => $user->profile,
+            'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at,
         ];
     }

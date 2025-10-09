@@ -19,12 +19,13 @@ class UserSeeder extends Seeder
             'name' => 'Super Admin',
             'email' => 's@s.com',
             'password' => bcrypt('string'),
-            'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+            // 'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
             'phone' => '6282386825834',
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
             'profile' => 'active',
+            'email_verified_at' => now(),
         ]);
         $superAdmin->assignRole('Super Admin');
 
@@ -33,12 +34,13 @@ class UserSeeder extends Seeder
             'name' => 'Roby',
             'email' => 'r@r.com',
             'password' => bcrypt('string'),
-            'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+            // 'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
             'phone' => '6282386825834',
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
-            'profile' => 'active'
+            'profile' => 'active',
+            'email_verified_at' => now(),
         ]);
         $rAdmin->assignRole('Admin');
 
@@ -47,12 +49,13 @@ class UserSeeder extends Seeder
             'name' => 'Putri',
             'email' => 'p@p.com',
             'password' => bcrypt('string'),
-            'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+            // 'avatar' => 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
             'phone' => '6282172766306',
             'city' => 'Pekanbaru',
             'address' => 'Jl. Hangtuah Ujung',
             'active' => 'active',
-            'profile' => 'active'
+            'profile' => 'active',
+            'email_verified_at' => now(),
         ]);
         $pAdmin->assignRole('Admin');
     }

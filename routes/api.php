@@ -9,17 +9,76 @@ use App\Http\Controllers\LogActivityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Spatie\Csp\AddCspHeaders;
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
 Route::middleware(AddCspHeaders::class)->group(function () {
     // Routes go here...
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
         Route::post('login', 'login')->name('login');
         Route::post('register', 'register');
     });
-    Route::middleware('auth:sanctum')->group(function () {
+
+
+    Route::get('/email/verify', function (Request $request) {
+        return response()->json([
+            'message' => 'Please verify your email address.'
+        ]);
+    })->middleware('auth:sanctum')->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) {
+        // Find user manually since EmailVerificationRequest has issues with soft deletes
+        $user = \App\Models\User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Invalid verification link or user not found.'
+            ], 404);
+        }
+
+        // Verify the hash manually
+        if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+            return response()->json([
+                'message' => 'Invalid verification link.'
+            ], 403);
+        }
+
+        // Check if already verified
+        if ($user->email_verified_at) {
+            return response()->json([
+                'message' => 'Email already verified.'
+            ], 400);
+        }
+
+        // Mark email as verified
+        $user->markEmailAsVerified();
+
+        // Create a token for the user after successful verification
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Email verified successfully.',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'email_verified_at' => $user->email_verified_at,
+            ]
+        ]);
+    })->middleware(['signed'])->name('verification.verify');
+
+    Route::post('/email/verification-notification', function (Request $request) {
+
+        $request->user()->sendEmailVerificationNotification();
+        return response()->json([
+            'message' => 'Verification link sent!'
+        ]);
+    })->middleware(['auth:sanctum', 'throttle:6,1'])->name('verification.send');
+
+
+
+
+
+    Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         // Auth routes
         Route::prefix('auth')->controller(AuthController::class)->group(function () {
             Route::post('logout', 'logout');

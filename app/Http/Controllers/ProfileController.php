@@ -8,8 +8,10 @@ use App\Rules\UniqueIndonesianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Intervention\Image\Laravel\Facades\Image;
 
 class ProfileController extends Controller
@@ -75,9 +77,22 @@ class ProfileController extends Controller
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
 
-            $validator = Validator::make($request->all(), [
+            // Trim dan sanitize input
+            $data = $request->all();
+            if (isset($data['email'])) {
+                $data['email'] = trim(strtolower($data['email']));
+            }
+            if (isset($data['phone'])) {
+                $data['phone'] = trim($data['phone']);
+            }
+
+            $validator = Validator::make($data, [
                 'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email,' . $user->id,
+                'email' => [
+                    'required',
+                    'email',
+                    Rule::unique('users', 'email')->ignore($user->id, 'id')
+                ],
                 'phone' => ['nullable', 'string', 'max:15', new UniqueIndonesianPhone($user->id)],
                 'address' => 'nullable|string|max:255',
                 'city' => 'nullable|string|max:100',
@@ -98,15 +113,24 @@ class ProfileController extends Controller
             ]);
 
             if ($validator->fails()) {
+                // Debug validation errors
+                Log::error('Profile Update Validation Failed', [
+                    'user_id' => $user->id,
+                    'current_email' => $user->email,
+                    'request_email' => $request->email,
+                    'errors' => $validator->errors()->toArray()
+                ]);
+
                 return response()->json([
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()->all(),
                 ], 422);
             }
+
             $phone = PhoneHelper::formatToIndonesian($request->phone);
+
             // Handle avatar upload
             if ($request->hasFile('avatar')) {
-                // Delete old avatar if exists
                 if ($user->avatar) {
                     $oldAvatarPath = storage_path('app/public/assets/images/user/avatar/' . $user->avatar);
                     if (file_exists($oldAvatarPath)) {
@@ -115,6 +139,17 @@ class ProfileController extends Controller
                 }
                 $user->avatar = $this->uploadAvatar($request->file('avatar'));
             }
+
+            // Update user data PERTAMA
+            $user->update([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $phone,
+                'address' => $request->address,
+                'city' => $request->city,
+            ]);
+
+            // Activity log SETELAH update
             activity()
                 ->causedBy($user)
                 ->performedOn($user)
@@ -127,16 +162,7 @@ class ProfileController extends Controller
                 ])
                 ->log("User {$user->name} updated profile.");
 
-            // Update user data
-            $user->update([
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $phone,
-                'address' => $request->address,
-                'city' => $request->city,
-            ]);
-
-            // Check if all required profile fields are filled and set profile status to active
+            // Check profile completion
             $allFieldsFilled = $user->name &&
                 $user->email &&
                 $user->phone &&
@@ -145,7 +171,7 @@ class ProfileController extends Controller
 
             if ($allFieldsFilled && $user->profile !== 'active') {
                 $user->update(['profile' => 'active']);
-                $user->refresh(); // Refresh to get updated data
+                $user->refresh();
             }
 
             $roleName = $user->roles->first()->name ?? null;
@@ -171,6 +197,12 @@ class ProfileController extends Controller
                 ],
             ], 200);
         } catch (\Exception $e) {
+            Log::error('Profile Update Error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'message' => 'Server error: ' . $e->getMessage()
             ], 500);
@@ -195,14 +227,21 @@ class ProfileController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'current_password' => 'required',
-                'new_password' => 'required|min:8|confirmed|different:current_password',
+                'new_password' => 'required|min:6|confirmed|different:current_password',
             ], [
                 'current_password.required' => 'Current password is required.',
                 'new_password.required' => 'New password is required.',
-                'new_password.min' => 'New password must be at least 8 characters.',
+                'new_password.min' => 'New password must be at least 6 characters.',
                 'new_password.confirmed' => 'New password confirmation does not match.',
                 'new_password.different' => 'New password must be different from current password.',
             ]);
+            // Check if current password is correct
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'message' => 'Current password is incorrect',
+
+                ], 422);
+            }
 
             if ($validator->fails()) {
                 return response()->json([
@@ -211,18 +250,23 @@ class ProfileController extends Controller
                 ], 422);
             }
 
-            // Check if current password is correct
-            if (!Hash::check($request->current_password, $user->password)) {
-                return response()->json([
-                    'message' => 'Current password is incorrect',
-                ], 422);
-            }
 
             // Update password
             $user->update([
                 'password' => Hash::make($request->new_password),
             ]);
-
+            // Activity log SETELAH update
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('update-password')
+                ->withProperties([
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} updated password.");
             return response()->json([
                 'message' => 'Password updated successfully',
             ], 200);
