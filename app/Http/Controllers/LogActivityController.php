@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity as ModelsActivity;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class LogActivityController extends Controller
 {
@@ -34,6 +35,24 @@ class LogActivityController extends Controller
     {
         try {
             $user = Auth::user();
+            $activities = ModelsActivity::where('causer_id', $user->id)->get();
+            return response()->json([
+                'message' => 'Activities retrieved successfully',
+                'activities' => $activities,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
+        }
+    }
+    /**
+     * Get all activities by user
+     *
+     * @return JsonResponse
+     */
+    public function activityUserShow(string $uuid)
+    {
+        try {
+            $user = User::where('uuid', $uuid)->first();
             $activities = ModelsActivity::where('causer_id', $user->id)->get();
             return response()->json([
                 'message' => 'Activities retrieved successfully',

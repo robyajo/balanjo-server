@@ -9,6 +9,7 @@ use App\Http\Controllers\LogActivityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Spatie\Csp\AddCspHeaders;
+
 Route::middleware(AddCspHeaders::class)->group(function () {
     // Routes go here...
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
@@ -89,10 +90,11 @@ Route::middleware(AddCspHeaders::class)->group(function () {
         });
         // Log Activity routes
         Route::prefix('log-activity')->controller(LogActivityController::class)->group(function () {
-            Route::get('index', 'index')->middleware('role:Super Admin');
+            Route::get('/', 'index')->middleware('role:Super Admin');
             Route::get('show/{id}', 'show')->middleware('role:Super Admin');
             Route::delete('destroy/{id}', 'destroy')->middleware('role:Super Admin');
-            Route::get('activity', 'activity');
+            Route::get('user-activity', 'activity');
+            Route::get('user-activity-show/{uuid}', 'activityUserShow');
         });
 
         // User routes
