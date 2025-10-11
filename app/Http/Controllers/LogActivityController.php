@@ -17,11 +17,25 @@ class LogActivityController extends Controller
     public function index()
     {
         try {
-            $activities = ModelsActivity::all();
+            $user = Auth::user();
+            $activities = ModelsActivity::orderBy('created_at', 'desc')->paginate(10);
             return response()->json([
                 'message' => 'Activities retrieved successfully',
                 'activities' => $activities,
             ], 200);
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('show-all-activity')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} show activity.");
         } catch (\Exception $e) {
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
@@ -35,29 +49,26 @@ class LogActivityController extends Controller
     {
         try {
             $user = Auth::user();
-            $activities = ModelsActivity::where('causer_id', $user->id)->get();
+            $activities = ModelsActivity::where('causer_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
             return response()->json([
                 'message' => 'Activities retrieved successfully',
                 'activities' => $activities,
             ], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
-        }
-    }
-    /**
-     * Get all activities by user
-     *
-     * @return JsonResponse
-     */
-    public function activityUserShow(string $uuid)
-    {
-        try {
-            $user = User::where('uuid', $uuid)->first();
-            $activities = ModelsActivity::where('causer_id', $user->id)->get();
-            return response()->json([
-                'message' => 'Activities retrieved successfully',
-                'activities' => $activities,
-            ], 200);
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('show-all-activity')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} show activity.");
         } catch (\Exception $e) {
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
@@ -73,11 +84,24 @@ class LogActivityController extends Controller
     public function show(string $id)
     {
         try {
-            $activity = ModelsActivity::find($id);
+            $activities = ModelsActivity::findOrFail($id);
             return response()->json([
                 'message' => 'Activity retrieved successfully',
-                'activity' => $activity,
+                'activity' => $activities,
             ], 200);
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('show-activity')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} show activity.");
         } catch (\Exception $e) {
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
@@ -94,12 +118,25 @@ class LogActivityController extends Controller
     public function destroy(string $id)
     {
         try {
-            $activity = ModelsActivity::find($id);
-            $activity->delete();
+            $activities = ModelsActivity::findOrFail($id);
+            $activities->delete();
             return response()->json([
                 'message' => 'Activity deleted successfully',
-                'activity' => $activity,
+                'activity' => $activities,
             ], 200);
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('delete-activity')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} delete activity.");
         } catch (\Exception $e) {
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }

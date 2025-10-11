@@ -21,7 +21,7 @@ class UserController extends Controller
     public function index()
     {
         try {
-            $users = User::with(['roles'])->orderBy('id', 'desc')->get();
+            $users = User::with(['roles'])->orderBy('id', 'desc')->paginate(10);
             $formattedUsers = $users->map(function ($user) {
                 return $this->formatUserResponse($user);
             });

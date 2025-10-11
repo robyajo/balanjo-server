@@ -115,6 +115,9 @@ class AuthController extends Controller
                 ->performedOn($user)
                 ->event('register')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -192,6 +195,9 @@ class AuthController extends Controller
                 ->performedOn($user)
                 ->event('login')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -227,6 +233,9 @@ class AuthController extends Controller
                 ->event('me')
                 ->performedOn($user)
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -291,7 +300,16 @@ class AuthController extends Controller
             $user = User::where('email', $request->email)->first();
             activity()
                 ->causedBy($user)
-                ->withProperties(['email' => $user->email])
+                ->performedOn($user)
+                ->event('forgot-password')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
                 ->log("User {$user->name} created an account.");
 
             $user->update([
@@ -329,6 +347,9 @@ class AuthController extends Controller
                 ->performedOn($user)
                 ->event('logout')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -361,6 +382,19 @@ class AuthController extends Controller
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ], 200);
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('refresh')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} refreshed token.");
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to refresh token: ' . $e->getMessage()], 500);
         }

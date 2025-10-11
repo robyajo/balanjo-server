@@ -68,11 +68,11 @@ class ProfileController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    public function update(Request $request)
+    public function update(Request $request, string $uuid)
     {
         try {
             /** @var \App\Models\User $user */
-            $user = Auth::user();
+            $user = User::with(['roles'])->where('uuid', $uuid)->first();
             if (!$user) {
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
@@ -86,7 +86,7 @@ class ProfileController extends Controller
                 $data['phone'] = trim($data['phone']);
             }
 
-            $validator = Validator::make($data, [
+            $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => [
                     'required',
@@ -155,6 +155,8 @@ class ProfileController extends Controller
                 ->performedOn($user)
                 ->event('update')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
                     'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
@@ -261,6 +263,8 @@ class ProfileController extends Controller
                 ->performedOn($user)
                 ->event('update-password')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
                     'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
@@ -399,6 +403,20 @@ class ProfileController extends Controller
             return response()->json([
                 'message' => 'Account deactivated successfully',
             ], 200);
+            $user = Auth::user();
+            activity()
+                ->causedBy($user)
+                ->performedOn($user)
+                ->event('deactivate')
+                ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                    'date' => now(),
+                    'device' => request()->userAgent(),
+                ])
+                ->log("User {$user->name} deactivated account.");
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Server error: ' . $e->getMessage()

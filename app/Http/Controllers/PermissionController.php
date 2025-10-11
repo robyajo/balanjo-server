@@ -16,15 +16,17 @@ class PermissionController extends Controller
      */
     public function index()
     {
+        $user = Auth::user();
         try {
             $data = Permission::orderBy('id', 'desc')
                 ->select('id', 'name')
-                ->get();
+                ->paginate(10);
             activity()
-                ->causedBy(Auth::user())
-                ->performedOn($data)
                 ->event('get permission')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -69,12 +71,14 @@ class PermissionController extends Controller
         }
 
         try {
+            $user = Auth::user();
             $data = Permission::create(['name' => $request->name]);
             activity()
-                ->causedBy(Auth::user())
-                ->performedOn($data)
                 ->event('create permission')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -107,11 +111,13 @@ class PermissionController extends Controller
                     'message' => 'Permission not found',
                 ], 404);
             }
+            $user = Auth::user();
             activity()
-                ->causedBy(Auth::user())
-                ->performedOn($data)
                 ->event('show permission')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -162,12 +168,14 @@ class PermissionController extends Controller
                     'message' => 'Permission not found',
                 ], 404);
             }
+            $user = Auth::user();
             $data->update(['name' => $request->name]);
             activity()
-                ->causedBy(Auth::user())
-                ->performedOn($data)
                 ->event('update permission')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),
@@ -198,12 +206,14 @@ class PermissionController extends Controller
                     'message' => 'Permission not found',
                 ], 404);
             }
+            $user = Auth::user();
             $data->delete();
             activity()
-                ->causedBy(Auth::user())
-                ->performedOn($data)
                 ->event('delete permission')
                 ->withProperties([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'ip' => request()->ip(),
                     'date' => now(),
                     'device' => request()->userAgent(),

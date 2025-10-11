@@ -91,10 +91,9 @@ Route::middleware(AddCspHeaders::class)->group(function () {
         // Log Activity routes
         Route::prefix('log-activity')->controller(LogActivityController::class)->group(function () {
             Route::get('/', 'index')->middleware('role:Super Admin');
-            Route::get('show/{id}', 'show')->middleware('role:Super Admin');
+            Route::get('show/{id}', 'show');
             Route::delete('destroy/{id}', 'destroy')->middleware('role:Super Admin');
             Route::get('user-activity', 'activity');
-            Route::get('user-activity-show/{uuid}', 'activityUserShow');
         });
 
         // User routes
@@ -133,7 +132,7 @@ Route::middleware(AddCspHeaders::class)->group(function () {
         // Profile routes
         Route::prefix('profile')->controller(ProfileController::class)->group(function () {
             Route::get('/', 'index');
-            Route::post('/update-profile', 'update');
+            Route::post('/update-profile/{uuid}', 'update');
             Route::post('/update-password', 'updatePassword');
             Route::delete('/avatar', 'deleteAvatar');
             Route::get('/activity', 'activity');

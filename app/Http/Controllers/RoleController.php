@@ -18,7 +18,7 @@ class RoleController extends Controller
     {
         $data = Role::orderBy('id', 'desc')
             ->select('id', 'name')
-            ->get();
+            ->paginate(10);
         try {
             activity()
                 ->causedBy(Auth::user())
